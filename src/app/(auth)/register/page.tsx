@@ -34,6 +34,7 @@ export default function RegisterPage() {
   const [role, setRole] = useState<"landlord" | "renter" | "">("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,10 +50,16 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    const { error } = await signUp(email, password, fullName, role, phone || undefined);
+    const { error, needsEmailConfirmation } = await signUp(email, password, fullName, role, phone || undefined);
 
     if (error) {
       setError(error);
+      setLoading(false);
+      return;
+    }
+
+    if (needsEmailConfirmation) {
+      setEmailSent(true);
       setLoading(false);
       return;
     }
@@ -62,6 +69,33 @@ export default function RegisterPage() {
     } else {
       router.push("/landlord/properties");
     }
+  }
+
+  if (emailSent) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Check Your Email</CardTitle>
+            <CardDescription>
+              Sandrock Investments Limited — Renter Portal
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-sm text-zinc-600">
+              We&apos;ve sent a confirmation link to <strong>{email}</strong>.
+              Please check your inbox and click the link to activate your account.
+            </p>
+            <p className="text-sm text-zinc-500">
+              Once confirmed, you can{" "}
+              <Link href="/login" className="font-medium text-zinc-900 hover:underline">
+                sign in here
+              </Link>.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (

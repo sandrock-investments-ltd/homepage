@@ -26,7 +26,7 @@ type AuthState = {
     fullName: string,
     role: "landlord" | "renter",
     phone?: string
-  ) => Promise<{ error: string | null }>;
+  ) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -45,8 +45,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("*")
       .eq("id", userId)
       .single();
-    setProfile(data);
-    return data;
+
+    if (data) {
+      setProfile(data);
+      return data;
+    }
+
+    // Profile missing — the DB trigger may not have run. Try to create it
+    // from the user's metadata as a fallback.
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const meta = currentUser?.user_metadata;
+    if (meta?.role && meta?.full_name) {
+      const { data: created, error: createError } = await supabase
+        .from("profiles")
+        .upsert({
+          id: userId,
+          full_name: meta.full_name,
+          role: meta.role,
+          phone: meta.phone ?? null,
+          status: meta.role === "landlord" ? "active" : "pending",
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error("Fallback profile creation failed:", createError.message);
+      } else if (created) {
+        setProfile(created);
+        return created;
+      }
+    }
+
+    setProfile(null);
+    return null;
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -104,11 +135,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
 
-    if (error) return { error: error.message };
+    if (error) return { error: error.message, needsEmailConfirmation: false };
 
-    // The DB trigger should create the profile, but it may not exist yet
-    // (migration not applied) or may race with this upsert. Either way,
-    // ensure the profile exists.
+    // If email confirmation is enabled, the user is created but there's no
+    // active session. The DB trigger (handle_new_user) will create the profile.
+    // We just need to tell the UI to show a "check your email" message.
+    const hasSession = !!data.session;
+
+    if (!hasSession) {
+      return { error: null, needsEmailConfirmation: true };
+    }
+
+    // Session exists (email confirmation disabled) — ensure profile exists.
+    // The DB trigger should have created it, but upsert as a safety net.
     if (data.user) {
       const { error: upsertError } = await supabase.from("profiles").upsert({
         id: data.user.id,
@@ -120,11 +159,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (upsertError) {
         console.error("Failed to create profile:", upsertError.message);
-        return { error: "Account created but profile setup failed. Please try logging in." };
+        // Don't fail — the trigger may have created the profile already
       }
     }
 
-    return { error: null };
+    return { error: null, needsEmailConfirmation: false };
   };
 
   const signOut = async () => {

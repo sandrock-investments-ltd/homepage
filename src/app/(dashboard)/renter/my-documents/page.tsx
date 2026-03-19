@@ -66,9 +66,8 @@ function DocumentsContent() {
     setLoading(false);
   }, [user]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching on mount, standard pattern
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   async function handleUpload() {
     if (!selectedFile || !selectedCategory || !tenancy || !user) return;

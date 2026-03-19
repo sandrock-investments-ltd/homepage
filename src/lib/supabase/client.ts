@@ -9,7 +9,12 @@ function createRealClient() {
   return createClient<Database>(supabaseUrl, supabaseAnonKey)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+function loadMockClient() {
+  // Dynamic import to keep mock code out of production builds
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('./mock-client').mockSupabase
+}
+
 export const supabase: ReturnType<typeof createRealClient> = useMock
-  ? require('./mock-client').mockSupabase
+  ? loadMockClient()
   : createRealClient()

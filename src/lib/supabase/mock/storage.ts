@@ -11,7 +11,8 @@ export function createMockStorage() {
           return { data: { path }, error: null }
         },
 
-        async createSignedUrl(path: string, _expiresInSeconds: number) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        async createSignedUrl(path: string, expiresInSeconds: number) {
           const key = `${bucket}/${path}`
           const file = mockStore.storage.get(key)
           if (file) {

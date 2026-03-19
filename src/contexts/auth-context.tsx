@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("id", userId)
       .single();
     setProfile(data);
+    return data;
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -55,11 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, fetchProfile]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        // Wait for profile fetch to complete before marking as loaded
+        await fetchProfile(session.user.id);
       }
       setLoading(false);
     });
@@ -104,16 +106,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error) return { error: error.message };
 
-    // The trigger function in the DB creates the profile,
-    // but we also upsert here for safety
+    // The DB trigger should create the profile, but it may not exist yet
+    // (migration not applied) or may race with this upsert. Either way,
+    // ensure the profile exists.
     if (data.user) {
-      await supabase.from("profiles").upsert({
+      const { error: upsertError } = await supabase.from("profiles").upsert({
         id: data.user.id,
         full_name: fullName,
         role,
         phone: phone ?? null,
         status: role === "landlord" ? "active" : "pending",
       });
+
+      if (upsertError) {
+        console.error("Failed to create profile:", upsertError.message);
+        return { error: "Account created but profile setup failed. Please try logging in." };
+      }
     }
 
     return { error: null };

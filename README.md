@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sandrock Investments Limited — Renter Portal
 
-## Getting Started
+A tenant portal for a small UK property investment business. Landlords invite renters, renters upload identity and financial documents, and landlords review them — all in one place. Built for compliance with the **UK Renters' Rights Act** (effective 1 May 2026).
 
-First, run the development server:
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+make setup        # install deps + Playwright browsers
+make dev-mock     # run locally with mock Supabase (no backend needed)
+make test-e2e     # run E2E tests
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Prerequisites
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Node.js 20+
+- npm
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Available commands
 
-## Learn More
+| Command | Description |
+|---------|-------------|
+| `make setup` | Install dependencies and Playwright browsers |
+| `make dev` | Start dev server against real Supabase |
+| `make dev-mock` | Start dev server with in-memory mock Supabase |
+| `make build` | Production build (static export to `out/`) |
+| `make lint` | Run ESLint |
+| `make test-e2e` | Run Playwright E2E tests |
+| `make test-e2e-ui` | Run Playwright E2E tests with interactive UI |
+| `make clean` | Remove build artefacts and test reports |
 
-To learn more about Next.js, take a look at the following resources:
+## Environment variables
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Copy `.env.local.example` to `.env.local` and fill in your Supabase credentials:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+```
 
-## Deploy on Vercel
+When using `make dev-mock`, no environment variables are needed — the app uses an in-memory mock Supabase client.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Tech stack
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Layer | Choice |
+|-------|--------|
+| Framework | Next.js 16 (App Router, static export) |
+| Language | TypeScript (strict) |
+| Database, Auth, Storage | Supabase (PostgreSQL + Auth + Storage) |
+| UI | shadcn/ui + Tailwind CSS v4 |
+| Forms & validation | React Hook Form + Zod |
+| E2E testing | Playwright |
+| Hosting | Cloudflare Pages (static) |
+| DNS & CDN | Cloudflare |
+
+## Project documentation
+
+| Document | What it covers |
+|----------|----------------|
+| [docs/plan.md](docs/plan.md) | MVP scope, user roles, data model, build order |
+| [docs/architecture.md](docs/architecture.md) | System context diagram, code structure, 3rd-party integrations |
+| [docs/product-flows.md](docs/product-flows.md) | Every user flow the app supports, with step-by-step detail |
+| [docs/development-journal.md](docs/development-journal.md) | Chronological log of how the project was built — for reference and learning |
+
+## Testing
+
+Tests are behaviour-driven Playwright E2E tests that run against the mock Supabase client. No real backend is needed.
+
+```bash
+make test-e2e       # headless
+make test-e2e-ui    # interactive UI mode
+```
+
+Tests cover: authentication, property management, renter invitations, document upload, document review, and renter onboarding.
+
+## CI/CD
+
+GitHub Actions runs on every push and PR:
+1. Lint
+2. Build (static export)
+3. E2E tests against mock Supabase
+4. Deploy to Cloudflare Pages (only on `main`, only if all checks pass)
+
+See [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+## Deployment
+
+The app is statically exported (`next build` produces `out/`) and deployed to **Cloudflare Pages**. Cloudflare also provides DNS and CDN.
+
+Supabase handles all backend concerns (auth, database, file storage) via client-side API calls.
